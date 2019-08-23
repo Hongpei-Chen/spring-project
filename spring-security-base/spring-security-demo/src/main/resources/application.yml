@@ -1,0 +1,25 @@
+server:
+  port: 10081
+
+#数据库配置
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://192.168.141.128:3306/demo?useUnicode=yes&characterEncoding=UTF-8&useSSL=false
+    username: jeff
+    password: 123456
+
+
+  # redis配置
+  redis:
+    host: 192.168.141.128
+    port: 6379
+
+  #session配置
+  session:
+    store-type: none
+
+#security配置
+security:
+  basic:
+    enabled: false
