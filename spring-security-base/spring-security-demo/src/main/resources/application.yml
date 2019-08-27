@@ -19,7 +19,20 @@ spring:
   session:
     store-type: none
 
-#security配置
+#security配置，默认开启
 security:
   basic:
-    enabled: false
+    enabled: true
+
+#### 自定义登录页
+jeff:
+  security:
+    browser:
+#      login-page: /demo-signIn.html
+      #登录成功或失败后的处理
+      login-type: JSON
+    code:
+      image:
+        length: 6
+        width: 100
+        url: /user/*
