@@ -5,15 +5,19 @@ server:
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://192.168.141.128:3306/demo?useUnicode=yes&characterEncoding=UTF-8&useSSL=false
-    username: jeff
-    password: 123456
+#    url: jdbc:mysql://192.168.141.128:3306/demo?useUnicode=yes&characterEncoding=UTF-8&useSSL=false
+#    username: jeff
+#    password: 123456
+    url: jdbc:mysql://47.94.138.114:3306/demo?useUnicode=yes&characterEncoding=UTF-8&useSSL=false
+    username: root
+    password: jeff@2018!@#
 
 
   # redis配置
   redis:
-    host: 192.168.141.128
+    host: 47.94.138.114
     port: 6379
+    password: jeff@2018!
 
   #session配置
   session:
@@ -25,14 +29,14 @@ security:
     enabled: true
 
 #### 自定义登录页
-jeff:
-  security:
-    browser:
+#jeff:
+#  security:
+#    browser:
 #      login-page: /demo-signIn.html
       #登录成功或失败后的处理
-      login-type: JSON
-    code:
-      image:
-        length: 6
-        width: 100
-        url: /user/*
+#      login-type: JSON
+#    code:
+#      image:
+#        length: 6
+#        width: 100
+#        url: /user/*

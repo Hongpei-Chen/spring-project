@@ -1,6 +1,9 @@
 package org.jeff.security.core.validate;
 
 import org.jeff.security.core.properties.SecurityProperties;
+import org.jeff.security.core.validate.image.ImageCodeGenerator;
+import org.jeff.security.core.validate.sms.DefaultSmsCodeSender;
+import org.jeff.security.core.validate.sms.SmsCodeSender;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -27,5 +30,11 @@ public class ValidateCodeBeanConfig {
         ImageCodeGenerator codeGenerator = new ImageCodeGenerator();
         codeGenerator.setSecurityProperties(securityProperties);
         return codeGenerator;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SmsCodeSender.class)
+    public SmsCodeSender smsCodeSender() {
+        return new DefaultSmsCodeSender();
     }
 }

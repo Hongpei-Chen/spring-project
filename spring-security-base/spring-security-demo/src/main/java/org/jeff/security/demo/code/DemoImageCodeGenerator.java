@@ -1,15 +1,14 @@
 package org.jeff.security.demo.code;
 
-import org.jeff.security.core.validate.ImageCode;
+import org.jeff.security.core.validate.image.ImageCode;
 import org.jeff.security.core.validate.ValidateCodeGenerator;
-import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.ServletWebRequest;
 
 /**
  * @author admin
  * <p>Date: 2019-08-27 17:12:00</p>
  */
-@Component("imageCodeGenerator")
+//@Component("imageCodeGenerator")
 public class DemoImageCodeGenerator implements ValidateCodeGenerator {
     @Override
     public ImageCode generate(ServletWebRequest request) {

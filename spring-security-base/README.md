@@ -1096,7 +1096,171 @@
         ```
     - 具体实现
     
+        - 创建TokenRepository配置
+        ```
+        @Bean
+        public PersistentTokenRepository persistentTokenRepository() {
+            JdbcTokenRepositoryImpl tokenRepository = new JdbcTokenRepositoryImpl();
+            tokenRepository.setDataSource(dataSource);
+            tokenRepository.setCreateTableOnStartup(true);
+            return tokenRepository;
+        }
+        
+         http.addFilterBefore(validateCodeFilter, UsernamePasswordAuthenticationFilter.class)
+                        //表单验证
+                        .formLogin()
+                        //跳转到指定的controller处理认证逻辑
+                        .loginPage("/authentication/require")
+                        //通知UsernamePasswordAuthenticationFilter处理登录验证的路径
+                        .loginProcessingUrl("/authentication/form")
+                        .successHandler(browserAuthenticationSuccess)
+                        .failureHandler(browserAuthenticationFailure)
+                        .and()
+                        //"记住我"的配置
+                        .rememberMe()
+                        .tokenRepository(persistentTokenRepository())
+                        .tokenValiditySeconds(securityProperties.getBrowser().getRememberMeSeconds())
+                        .userDetailsService(userDetailsService)
+                        .and()
+                        .authorizeRequests()
+                        //匹配可放行页面
+                        .antMatchers("/authentication/require",
+                                securityProperties.getBrowser().getLoginPage(),
+                                "/code/image").permitAll()
+                        .anyRequest()
+                        .authenticated()
+                        .and()
+                        //跨站伪造攻击配置
+                        .csrf().disable();            
+        ```
+        
     - 源码分析
+
+- 短信验证码登录
+
+    - 开发短信验证码接口
+        - 创建短信验证码Bean ValidateCode
+        ```
+        //由于ImageCode和ValidateCode只是多了一个属性，所以ImageCode可以继承ValidaeCode
+        ```
+        - 开发短信验证码生成器 SmsCodeGenerator
+        ```java
+            @Component
+            public class SmsCodeGenerator implements ValidateCodeGenerator {
+            
+                @Autowired
+                private SecurityProperties securityProperties;
+            
+                @Override
+                public ValidateCode generate(ServletWebRequest request) {
+                    String code = RandomStringUtils.randomNumeric(securityProperties.getCode().getSms().getLength());
+                    return new ValidateCode(code, securityProperties.getCode().getSms().getExpireIn());
+                }
+            }
+        
+            //短信可配置项
+            @Data
+            public class SmsCodeProperties {
+            
+                private int length = 6;
+                /**
+                 * 过期时间，默认60秒
+                 */
+                private int expireIn = 60;
+            
+                /**
+                 * 可配置接口(用‘,’间隔)
+                 */
+                private String url;
+            }
+        ```
+        - 短信发送器(可扩展接口)
+        ```java
+            public interface SmsCodeSender {
+            
+                void send(String mobile, String code);
+            }
+  
+            public class DefaultSmsCodeSender implements SmsCodeSender {
+            
+                private Logger logger = LoggerFactory.getLogger(getClass());
+            
+                @Override
+                public void send(String mobile, String code) {
+                    logger.info("向手机【{}】发送验证码【{}】", mobile, code);
+                }
+            }
+        ```
+        - 配置
+        ```java
+            @Bean
+            @ConditionalOnMissingBean(SmsCodeSender.class)
+            public SmsCodeSender smsCodeSender() {
+                return new DefaultSmsCodeSender();
+            }
+        ```
+        - 接口调用
+        ```java
+            @GetMapping("/code/sms")
+            public void createSmsCode(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletRequestBindingException {
+                // 随机数生成
+                ValidateCode smsCode = smsCodeGenerator.generate(new ServletWebRequest(request));
+                // 将随机数缓存
+                sessionStrategy.setAttribute(new ServletWebRequest(request), SESSION_KEY , smsCode);
+                // 发送短信
+                String mobile = ServletRequestUtils.getStringParameter(request, "mobile");
+                smsCodeSender.send(mobile , smsCode.getCode());
+            }
+        ```
+    - 校验短信验证码并登录
+    
+        - 校验流程: 短信校验应该在短信验证过滤器前校验，类似图形验证码
+        ![login-flow](image/login-flow.png)
+        
+        - SmsCodeAuthenticationFilter
+        ```java
+        
+        ```
+        
+        - SmsCodeAuthenticationToken
+        ```java
+        
+        ```
+        
+        - SmsCodeAuthenticationProvider
+        ```java
+        
+        ```
+        
+    - 重构
+    
+        - 重构后的结构
+        ![validate-code-image](image/validate-code-template.png)
+        
+        - ValidateCodeProcessor
+        ```java
+        
+        ```
+        
+        - AbstractValidateCodeProcessor
+        ```java
+        
+        ```
+        
+        - ImageCodeProcessor
+        ```java
+        
+        ```
+        
+        - SmsCodeProcessor
+        ```java
+        
+        ```
+        
+        - ValidateCodeController
+        ```java
+        
+        ```
         
 #### 授权
 

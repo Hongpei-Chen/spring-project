@@ -1,6 +1,10 @@
-package org.jeff.security.core.validate;
+package org.jeff.security.core.validate.image;
 
 import org.jeff.security.core.properties.SecurityProperties;
+import org.jeff.security.core.validate.ValidateCodeGenerator;
+import org.jeff.security.core.validate.image.ImageCode;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.web.bind.ServletRequestUtils;
 import org.springframework.web.context.request.ServletWebRequest;
 
@@ -12,8 +16,10 @@ import java.util.Random;
  * @author admin
  * <p>Date: 2019-08-27 17:03:00</p>
  */
+@Component("imageCodeGenerator")
 public class ImageCodeGenerator implements ValidateCodeGenerator {
 
+    @Autowired
     private SecurityProperties securityProperties;
 
     @Override

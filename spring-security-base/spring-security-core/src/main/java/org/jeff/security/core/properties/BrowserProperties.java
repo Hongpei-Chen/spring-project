@@ -14,4 +14,9 @@ public class BrowserProperties {
 
     private LoginType loginType = LoginType.JSON;
 
+    /**
+     * token 的过期时间
+     */
+    private int rememberMeSeconds = 3600;
+
 }
