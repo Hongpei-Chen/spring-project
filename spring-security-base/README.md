@@ -1231,6 +1231,88 @@
         ```java
         
         ```
+       - 配置SmsCodeAuthenticationConfig
+       ```java
+       /** 
+        * 短信配置配置core模块中为了多个模块重用
+        * @author jeff
+        * <p>Date 2019/8/28</p>
+        */
+       @Configuration
+       public class SmsCodeAuthenticationConfig extends
+               SecurityConfigurerAdapter<DefaultSecurityFilterChain, HttpSecurity>{
+       
+           @Autowired
+           private AuthenticationSuccessHandler successHandler;
+       
+           @Autowired
+           private AuthenticationFailureHandler failureHandler;
+       
+           @Autowired
+           private UserDetailsService userDetailsService;
+       
+           @Override
+           public void configure(HttpSecurity http) throws Exception {
+               SmsCodeAuthenticationFilter smsFilter = new SmsCodeAuthenticationFilter();
+               smsFilter.setAuthenticationManager(http.getSharedObject(AuthenticationManager.class));
+               smsFilter.setAuthenticationSuccessHandler(successHandler);
+               smsFilter.setAuthenticationFailureHandler(failureHandler);
+       
+               SmsCodeAuthenticationProvider smsProvider = new SmsCodeAuthenticationProvider();
+               smsProvider.setUserDetailsService(userDetailsService);
+       
+               http.authenticationProvider(smsProvider)
+                       .addFilterAfter(smsFilter, UsernamePasswordAuthenticationFilter.class);
+           }
+       }
+       ```
+       
+       - 添加到spring的认证流程中
+       ```java
+          @Override
+           protected void configure(HttpSecurity http) throws Exception {
+               ValidateCodeFilter validateCodeFilter = new ValidateCodeFilter();
+               validateCodeFilter.setAuthenticationFailureHandler(browserAuthenticationFailure);
+               validateCodeFilter.setSecurityProperties(securityProperties);
+               validateCodeFilter.afterPropertiesSet();
+       
+               //短信验证
+               SmsCodeFilter smsCodeFilter = new SmsCodeFilter();
+               smsCodeFilter.setAuthenticationFailureHandler(browserAuthenticationFailure);
+               smsCodeFilter.setSecurityProperties(securityProperties);
+               smsCodeFilter.afterPropertiesSet();
+       
+               http.addFilterBefore(validateCodeFilter, UsernamePasswordAuthenticationFilter.class)
+                       .addFilterBefore(smsCodeFilter, UsernamePasswordAuthenticationFilter.class)
+                       //表单验证
+                       .formLogin()
+                       //跳转到指定的controller处理认证逻辑
+                       .loginPage("/authentication/require")
+                       //通知UsernamePasswordAuthenticationFilter处理登录验证的路径
+                       .loginProcessingUrl("/authentication/form")
+                       .successHandler(browserAuthenticationSuccess)
+                       .failureHandler(browserAuthenticationFailure)
+                       .and()
+                       //"记住我"的配置
+                       .rememberMe()
+                       .tokenRepository(persistentTokenRepository())
+                       .tokenValiditySeconds(securityProperties.getBrowser().getRememberMeSeconds())
+                       .userDetailsService(userDetailsService)
+                       .and()
+                       .authorizeRequests()
+                       //匹配可放行页面
+                       .antMatchers("/authentication/require",
+                               securityProperties.getBrowser().getLoginPage(),
+                               "/code/*").permitAll()
+                       .anyRequest()
+                       .authenticated()
+                       .and()
+                       //跨站伪造攻击配置
+                       .csrf().disable()
+                       // 添加短信认证流程到认证流程中
+                       .apply(smsCodeAuthenticationConfig);
+           }
+       ```
         
     - 重构
     

@@ -1,5 +1,7 @@
 package org.jeff.security.browser.config;
 
+import org.jeff.security.core.authentication.mobile.SmsCodeAuthenticationConfig;
+import org.jeff.security.core.filter.SmsCodeFilter;
 import org.jeff.security.core.filter.ValidateCodeFilter;
 import org.jeff.security.core.properties.SecurityProperties;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +42,9 @@ public class BrowserSecurityConfig extends WebSecurityConfigurerAdapter {
     @Autowired
     private UserDetailsService userDetailsService;
 
+    @Autowired
+    private SmsCodeAuthenticationConfig smsCodeAuthenticationConfig;
+
     /**
      * 密码加密
      */
@@ -64,7 +69,14 @@ public class BrowserSecurityConfig extends WebSecurityConfigurerAdapter {
         validateCodeFilter.setSecurityProperties(securityProperties);
         validateCodeFilter.afterPropertiesSet();
 
+        //短信验证
+        SmsCodeFilter smsCodeFilter = new SmsCodeFilter();
+        smsCodeFilter.setAuthenticationFailureHandler(browserAuthenticationFailure);
+        smsCodeFilter.setSecurityProperties(securityProperties);
+        smsCodeFilter.afterPropertiesSet();
+
         http.addFilterBefore(validateCodeFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(smsCodeFilter, UsernamePasswordAuthenticationFilter.class)
                 //表单验证
                 .formLogin()
                 //跳转到指定的controller处理认证逻辑
@@ -89,6 +101,8 @@ public class BrowserSecurityConfig extends WebSecurityConfigurerAdapter {
                 .authenticated()
                 .and()
                 //跨站伪造攻击配置
-                .csrf().disable();
+                .csrf().disable()
+                // 添加短信认证流程到认证流程中
+                .apply(smsCodeAuthenticationConfig);
     }
 }
