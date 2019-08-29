@@ -1552,7 +1552,8 @@
         ``` 
     - 授权模式(流程步骤2)
         1. 授权码模式(多数)
-        ![oauth-code](image/oauth-code.png)
+            ![oauth-code](image/oauth-code.png)
+            
             ```
                 1. 第三方用户需要用户授权时，第三方应用将用户导向认证服务器
                 2. 用户同意授权(认证服务器中完成)
