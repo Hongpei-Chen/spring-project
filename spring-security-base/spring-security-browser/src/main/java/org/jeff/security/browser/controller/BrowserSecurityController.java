@@ -2,6 +2,7 @@ package org.jeff.security.browser.controller;
 
 import org.apache.commons.lang.StringUtils;
 import org.jeff.security.browser.support.SimpleResponse;
+import org.jeff.security.core.constants.SecurityConstants;
 import org.jeff.security.core.properties.SecurityProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +46,7 @@ public class BrowserSecurityController {
      * @return
      * @throws IOException
      */
-    @RequestMapping("/authentication/require")
+    @RequestMapping(SecurityConstants.DEFAULT_UNAUTHENTICATION_URL)
     @ResponseStatus(code = HttpStatus.UNAUTHORIZED)
     public SimpleResponse requireAuthentication(HttpServletRequest request, HttpServletResponse response)
             throws IOException {

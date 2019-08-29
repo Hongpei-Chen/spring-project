@@ -10,7 +10,7 @@ import javax.imageio.ImageIO;
  * @author admin
  * <p>Date: 2019-08-28 15:50:00</p>
  */
-@Component("imageCodeProcessor")
+@Component("imageValidateCodeProcessor")
 public class ImageCodeProcessor extends AbstractValidateCodeProcessor<ImageCode> {
 
 

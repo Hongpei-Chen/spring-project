@@ -2,6 +2,7 @@ package org.jeff.security.core.properties;
 
 import lombok.Data;
 import org.jeff.security.core.constants.LoginType;
+import org.jeff.security.core.constants.SecurityConstants;
 
 /**
  * @author admin
@@ -10,7 +11,7 @@ import org.jeff.security.core.constants.LoginType;
 @Data
 public class BrowserProperties {
 
-    private String loginPage = "/login.html";
+    private String loginPage = SecurityConstants.DEFAULT_LOGIN_PAGE_URL;
 
     private LoginType loginType = LoginType.JSON;
 

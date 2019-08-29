@@ -11,7 +11,7 @@ import org.springframework.web.context.request.ServletWebRequest;
  * @author admin
  * <p>Date: 2019-08-28 15:50:00</p>
  */
-@Component("smsCodeProcessor")
+@Component("smsValidateCodeProcessor")
 public class SmsCodeProcessor extends AbstractValidateCodeProcessor<ValidateCode> {
 
     @Autowired
@@ -22,4 +22,5 @@ public class SmsCodeProcessor extends AbstractValidateCodeProcessor<ValidateCode
         String mobile = ServletRequestUtils.getRequiredStringParameter(request.getRequest(), "mobile");
         smsCodeSender.send(mobile, validateCode.getCode());
     }
+
 }

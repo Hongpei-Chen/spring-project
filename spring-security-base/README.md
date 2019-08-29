@@ -1319,31 +1319,289 @@
         - 重构后的结构
         ![validate-code-image](image/validate-code-template.png)
         
-        - ValidateCodeProcessor
+        - 重构验证码过滤器
         ```java
-        
+              //将SmsCodeFilter和ValidateCodeFilter合并
+            @Component
+            public class ValidateCodeFilter extends OncePerRequestFilter implements InitializingBean {
+            
+                /**
+                 * 验证码校验失败处理器
+                 */
+                @Autowired
+                private AuthenticationFailureHandler authenticationFailureHandler;
+            
+                /**
+                 * 系统配置信息
+                 */
+                @Autowired
+                private SecurityProperties securityProperties;
+            
+                /**
+                 * 系统中的校验码处理器
+                 */
+                @Autowired
+                private ValidateCodeProcessorHolder validateCodeProcessorHolder;
+            
+                /**
+                 * 存放所有需要校验验证码的url
+                 */
+                private Map<String, ValidateCodeType> urlMap = new HashMap<>();
+            
+            
+                private AntPathMatcher antPathMatcher = new AntPathMatcher();
+            
+                /**
+                 * 所有参数完成初始化后，初始化url
+                 * @throws ServletException
+                 */
+                @Override
+                public void afterPropertiesSet() throws ServletException {
+                    super.afterPropertiesSet();
+                    urlMap.put(SecurityConstants.DEFAULT_LOGIN_PROCESSING_URL_FORM, ValidateCodeType.IMAGE);
+                    addUrlToMap(securityProperties.getCode().getImage().getUrl(), ValidateCodeType.IMAGE);
+            
+                    urlMap.put(SecurityConstants.DEFAULT_LOGIN_PROCESSING_URL_MOBILE, ValidateCodeType.SMS);
+                    addUrlToMap(securityProperties.getCode().getSms().getUrl(), ValidateCodeType.SMS);
+                }
+            
+                @Override
+                protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+                        throws ServletException, IOException {
+                    ValidateCodeType type = getValidateCodeType(request);
+                    if (Objects.nonNull(type)) {
+                        logger.info("校验请求(" + request.getRequestURI() + ")中的验证码,验证码类型" + type);
+                        try {
+                            validateCodeProcessorHolder.findValidateCodeProcessor(type)
+                                    .validate(new ServletWebRequest(request, response));
+                            logger.info("验证码校验通过");
+                        } catch (ValidateCodeException e) {
+                            authenticationFailureHandler.onAuthenticationFailure(request, response, e);
+                            return;
+                        }
+                    }
+            
+                    filterChain.doFilter(request, response);
+                }
+            
+            
+            
+                /**
+                 * 讲系统中配置的需要校验验证码的URL根据校验的类型放入map
+                 *
+                 * @param urlString
+                 * @param type
+                 */
+                protected void addUrlToMap(String urlString, ValidateCodeType type) {
+                    if (StringUtils.isNotBlank(urlString)) {
+                        String[] urls = StringUtils.splitByWholeSeparatorPreserveAllTokens(urlString, ",");
+                        for (String url : urls) {
+                            urlMap.put(url, type);
+                        }
+                    }
+                }
+            
+                /**
+                 * 获取校验码的类型，如果当前请求不需要校验，则返回null
+                 *
+                 * @param request
+                 * @return
+                 */
+                private ValidateCodeType getValidateCodeType(HttpServletRequest request) {
+                    ValidateCodeType result = null;
+                    if (!StringUtils.equalsIgnoreCase(request.getMethod(), "get")) {
+                        Set<String> urls = urlMap.keySet();
+                        for (String url : urls) {
+                            if (antPathMatcher.match(url, request.getRequestURI())) {
+                                result = urlMap.get(url);
+                            }
+                        }
+                    }
+                    return result;
+                }
+            }
         ```
         
-        - AbstractValidateCodeProcessor
+        - 重构配置
         ```java
+        //配置分模块，可扩展，易维护
+        
+            //表达账号密码模块
+            public class AbstractChannelSecurityConfig extends WebSecurityConfigurerAdapter {
+            
+                @Autowired
+                protected AuthenticationSuccessHandler successHandler;
+            
+                @Autowired
+                protected AuthenticationFailureHandler failureHandler;
+            
+                /**
+                 * 密码登录校验配置
+                 * @param http
+                 * @throws Exception
+                 */
+                protected void applyPasswordAuthenticationConfig(HttpSecurity http) throws Exception {
+                    http.formLogin()
+                            .loginPage(SecurityConstants.DEFAULT_UNAUTHENTICATION_URL)
+                            .loginProcessingUrl(SecurityConstants.DEFAULT_LOGIN_PROCESSING_URL_FORM)
+                            .successHandler(successHandler)
+                            .failureHandler(failureHandler);
+                }
+            }
+        
+            //验证码过滤器
+            @Component
+            public class ValidateCodeSecurityConfig extends SecurityConfigurerAdapter<DefaultSecurityFilterChain, HttpSecurity> {
+            
+                @Autowired
+                private Filter validateCodeFilter;
+            
+                @Override
+                public void configure(HttpSecurity http) throws Exception {
+                    http.addFilterBefore(validateCodeFilter, AbstractPreAuthenticatedProcessingFilter.class);
+                }
+            }
+  
+            //短信验证模块
+            @Configuration
+            public class SmsCodeAuthenticationConfig extends
+                    SecurityConfigurerAdapter<DefaultSecurityFilterChain, HttpSecurity>{
+            
+                @Autowired
+                private AuthenticationSuccessHandler successHandler;
+            
+                @Autowired
+                private AuthenticationFailureHandler failureHandler;
+            
+                @Autowired
+                private UserDetailsService userDetailsService;
+            
+                @Override
+                public void configure(HttpSecurity http) throws Exception {
+                    SmsCodeAuthenticationFilter smsFilter = new SmsCodeAuthenticationFilter();
+                    smsFilter.setAuthenticationManager(http.getSharedObject(AuthenticationManager.class));
+                    smsFilter.setAuthenticationSuccessHandler(successHandler);
+                    smsFilter.setAuthenticationFailureHandler(failureHandler);
+            
+                    SmsCodeAuthenticationProvider smsProvider = new SmsCodeAuthenticationProvider();
+                    smsProvider.setUserDetailsService(userDetailsService);
+            
+                    http.authenticationProvider(smsProvider)
+                            .addFilterAfter(smsFilter, UsernamePasswordAuthenticationFilter.class);
+                }
+            }
+      
+            //浏览器模块的配置例子
+                     //密码登录配置
+                    applyPasswordAuthenticationConfig(http);
+            
+                    //校验码相关验证配置(图形验证码或短信验证码是否匹配)
+                    http.apply(validateCodeSecurityConfig)
+                            .and()
+                            //短信校验配置
+                            .apply(smsCodeAuthenticationConfig)
+                            .and()
+                            //"记住我"的配置
+                            .rememberMe()
+                            .tokenRepository(persistentTokenRepository())
+                            .tokenValiditySeconds(securityProperties.getBrowser().getRememberMeSeconds())
+                            .userDetailsService(userDetailsService)
+                            .and()
+                            .authorizeRequests()
+                           //匹配不需要认证的请求
+                            .antMatchers(
+                                    SecurityConstants.DEFAULT_UNAUTHENTICATION_URL,
+                                    SecurityConstants.DEFAULT_LOGIN_PROCESSING_URL_MOBILE,
+                                    securityProperties.getBrowser().getLoginPage(),
+                                    SecurityConstants.DEFAULT_VALIDATE_CODE_URL_PREFIX + "/*")
+                            .permitAll()
+                            .anyRequest()
+                            .authenticated()
+                            .and()
+                            //跨站伪造攻击配置
+                            .csrf().disable();
         
         ```
+        - 常量SecurityConstants
+  
         
-        - ImageCodeProcessor
-        ```java
+#### Spring Social 第三方认证
+
+- OAuth 协议
+
+    - 解决的问题
+    - 角色关系
+    
+        - 服务提供商(provider): 提供令牌
+            - 认证服务器(authorization server): 认证用户并产生令牌
+            - 资源服务器(resource server): 存储用户数据，并认证令牌
+        - 资源所有者(resource owner): 用户
+        - 第三方应用(client)
+        
+    - 流程
+    
+        ![OAuth](image/OAuth.png) 
+        ```
+        0. 用户访问第三方应用
+        1. 第三方应向用户申请授权
+        2. 用户同意授权
+        3. 第三方应用向服务提供商申请令牌token
+        4. 认证服务器认证用户授权通过，向第三方服务器发放令牌
+        5. 第三方应用携带令牌访问资源服务器
+        6. 资源服务器认证令牌的有效性，有效则开放访问权限
+        ``` 
+    - 授权模式(流程步骤2)
+        1. 授权码模式(多数)
+        ![oauth-code](image/oauth-code.png)
+            ```
+                1. 第三方用户需要用户授权时，第三方应用将用户导向认证服务器
+                2. 用户同意授权(认证服务器中完成)
+                3. 用户同意授权后，认证服务器会将用户重新导回第三方应用(
+                    第三方应用和认证服务器协商跳转回的地址)，并返回授权码
+                4. 携带返回的授权码向认证服务器申请令牌(客户端后台完成)
+                5. 认证服务器确认授权码有效后，向第三方应用发放令牌
+            ```
+        2. 简化模式(无服务器时使用)
+        3. 密码模式
+        4. 客户端模式(少用)
+        
+- spring social 原理
+
+    - 基本流程
+    ![spring social](image/spring-social.png)
+    
+        ```
+        spring social 主要封装了OAuth2的认证流程
+        步骤1到步骤5为标准流程
+        ```
+    - 接口对应的OAuth认证流程角色
+    ![spring social interface](image/social-interface.png)
         
         ```
-        
-        - SmsCodeProcessor
-        ```java
-        
+        1. ServiceProvider(默认实现 AbstractOAuth2ServiceProvider)
+           服务提供商抽象：
+           例如实现QQ登录时可继承AbstractOAuth2ServiceProvider
+           
+            1.1. OAuth2Operations(默认实现 OAuth2Template) 
+                封装了步骤1到步骤5的标准认证流程
+                
+            1.2. Api( AbstractOAuth2ApiBinding)
+                 获取用户信息行为
+                 
+         2. 步骤7相关的接口类
+            2.1 Connection(OAuth2Connection)
+                封装用户提供商提供的用户信息
+                
+            2.2 ConnectionFactory(OAuth2ConnectionFactory)
+                通过执行ServiceProvider的流程，获取用户信息
+                通过ApiAdapter将获取的用户信息构建Connection
+         3. 将客户端的用户与提供商用户(QQ登录)相关联
+            3.1 数据库存储相关联表 UserConnection表
+            3.2 UsersConnectionRepository(JdbcUsersConnectionRepository)
+                操作相关联表
         ```
-        
-        - ValidateCodeController
-        ```java
-        
-        ```
-        
+- QQ登录实现
+
 #### 授权
 
 #### 攻击防护(伪造用户身份)
@@ -1362,4 +1620,6 @@
                         .authenticated();
             }
     ```
+ 
+ 
       
