@@ -29,8 +29,8 @@ security:
     enabled: true
 
 #### 自定义登录页
-#jeff:
-#  security:
+jeff:
+  security:
 #    browser:
 #      login-page: /demo-signIn.html
       #登录成功或失败后的处理
@@ -40,3 +40,10 @@ security:
 #        length: 6
 #        width: 100
 #        url: /user/*
+    social:
+      filter-processes-url: /auth
+      qq:
+        app-id: 1109751379
+        app-secret: r1AqvVa9HelLFVUL
+        provider-id: qq
+
