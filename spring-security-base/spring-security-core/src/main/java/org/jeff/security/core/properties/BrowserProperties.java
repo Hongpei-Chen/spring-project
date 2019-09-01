@@ -15,6 +15,8 @@ public class BrowserProperties {
 
     private LoginType loginType = LoginType.JSON;
 
+    private String signUpUrl = "/sign-up.html";
+
     /**
      * token 的过期时间
      */

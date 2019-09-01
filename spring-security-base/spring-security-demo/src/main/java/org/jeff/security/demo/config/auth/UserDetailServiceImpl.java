@@ -28,15 +28,6 @@ public class UserDetailServiceImpl implements UserDetailsService, SocialUserDeta
     @Override
     public UserDetails loadUserByUsername(String username)
             throws UsernameNotFoundException {
-//        logger.info("登陆用户名：" + username);
-        //根据用户名查询用户信息
-//        User user = new User(username, "123456", AuthorityUtils.commaSeparatedStringToAuthorityList("admin"));
-        //应该在用户注册时的加密操作，从数据库获取的密码应该是加密后的
-//        String password = passwordEncoder.encode("123456");
-//        User user = new User(username, password, true, true, true, true,
-//                AuthorityUtils.commaSeparatedStringToAuthorityList("admin"));
-
-//        return user;
         logger.info("表单登录用户名:" + username);
         return buildUser(username);
     }

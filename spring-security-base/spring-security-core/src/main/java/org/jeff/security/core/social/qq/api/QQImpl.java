@@ -11,8 +11,14 @@ import org.springframework.social.oauth2.TokenStrategy;
  * <p>Date: 2019-08-30 10:01:00</p>
  */
 public class QQImpl extends AbstractOAuth2ApiBinding implements QQ {
+    /**
+     * 获取openId的路径
+     */
     private static final String URL_GET_OPENID = "https://graph.qq.com/oauth2.0/me?access_token=%s";
 
+    /**
+     * 获取用户信息的url
+     */
     private static final String URL_GET_USERINFO = "https://graph.qq.com/user/get_user_info?oauth_consumer_key=%s&openid=%s";
 
     private String appId;

@@ -1603,6 +1603,364 @@
         ```
 - QQ登录实现
 
+    - QQ接入文档
+    ```
+    
+    ```
+    
+    - QQ用户信息Bean
+    ```java
+        @Data
+        public class QQUserInfo {
+        
+            /**
+             * 	返回码
+             */
+            private String ret;
+            /**
+             * 如果ret<0，会有相应的错误信息提示，返回数据全部用UTF-8编码。
+             */
+            private String msg;
+            /**
+             *
+             */
+            private String openId;
+            /**
+             * 不知道什么东西，文档上没写，但是实际api返回里有。
+             */
+            private String is_lost;
+            /**
+             * 省(直辖市)
+             */
+            private String province;
+            /**
+             * 市(直辖市区)
+             */
+            private String city;
+            /**
+             * 出生年月
+             */
+            private String year;
+            /**
+             * 	用户在QQ空间的昵称。
+             */
+            private String nickname;
+            /**
+             * 	大小为30×30像素的QQ空间头像URL。
+             */
+            private String figureurl;
+            /**
+             * 	大小为50×50像素的QQ空间头像URL。
+             */
+            private String figureurl_1;
+            /**
+             * 	大小为100×100像素的QQ空间头像URL。
+             */
+            private String figureurl_2;
+            /**
+             * 	大小为40×40像素的QQ头像URL。
+             */
+            private String figureurl_qq_1;
+            /**
+             * 	大小为100×100像素的QQ头像URL。需要注意，不是所有的用户都拥有QQ的100×100的头像，但40×40像素则是一定会有。
+             */
+            private String figureurl_qq_2;
+            /**
+             * 	性别。 如果获取不到则默认返回”男”
+             */
+            private String gender;
+            /**
+             * 	标识用户是否为黄钻用户（0：不是；1：是）。
+             */
+            private String is_yellow_vip;
+            /**
+             * 	标识用户是否为黄钻用户（0：不是；1：是）
+             */
+            private String vip;
+            /**
+             * 	黄钻等级
+             */
+            private String yellow_vip_level;
+            /**
+             * 	黄钻等级
+             */
+            private String level;
+            /**
+             * 标识是否为年费黄钻用户（0：不是； 1：是）
+             */
+            private String is_yellow_year_vip;
+        }
+    ```
+    
+    - 创建Api接口并实现该接口
+    ```java
+        public interface QQ {
+        
+            /**
+             * 获取QQ返回的用户信息
+             * @return {@link QQUserInfo}
+             */
+            QQUserInfo getUserInfo();
+        }
+      /**
+       * AbstractOAuth2ApiBinding 默认的Api实现
+       * 
+       */
+      public class QQImpl extends AbstractOAuth2ApiBinding implements QQ {
+          /**
+           * 获取openId的路径
+           */
+          private static final String URL_GET_OPENID = "https://graph.qq.com/oauth2.0/me?access_token=%s";
+      
+          /**
+           * 获取用户信息的url
+           */
+          private static final String URL_GET_USERINFO = "https://graph.qq.com/user/get_user_info?oauth_consumer_key=%s&openid=%s";
+      
+          private String appId;
+      
+          private String openId;
+      
+          private ObjectMapper objectMapper = new ObjectMapper();
+      
+          public QQImpl(String accessToken, String appId) {
+              super(accessToken, TokenStrategy.ACCESS_TOKEN_PARAMETER);
+      
+              this.appId = appId;
+      
+              String url = String.format(URL_GET_OPENID, accessToken);
+              String result = getRestTemplate().getForObject(url, String.class);
+      
+              System.out.println(result);
+      
+              this.openId = StringUtils.substringBetween(result, "\"openid\":\"", "\"}");
+          }
+      
+          @Override
+          public QQUserInfo getUserInfo() {
+              String url = String.format(URL_GET_USERINFO, appId, openId);
+              String result = getRestTemplate().getForObject(url, String.class);
+      
+              System.out.println(result);
+      
+              QQUserInfo userInfo = null;
+              try {
+                  userInfo = objectMapper.readValue(result, QQUserInfo.class);
+                  userInfo.setOpenId(openId);
+                  return userInfo;
+              } catch (Exception e) {
+                  throw new RuntimeException("获取用户信息失败", e);
+              }
+          }
+      }
+
+    ```
+    
+    - 开发ServiceProvider
+    ```java
+        public class QQServiceProvider extends AbstractOAuth2ServiceProvider<QQ> {
+        
+            private String appId;
+        
+            /**
+             * 认证服务器地址
+             */
+            private static final String URL_AUTHORIZE = "https://graph.qq.com/oauth2.0/authorize";
+        
+            /**
+             * 申请令牌的地址
+             */
+            private static final String URL_ACCESS_TOKEN = "https://graph.qq.com/oauth2.0/token";
+        
+            public QQServiceProvider(String appId, String appSecret) {
+                //OAuth2Template 是spring 默认的OAuth2Operations实现
+                super(new OAuth2Template(appId, appSecret, URL_AUTHORIZE, URL_ACCESS_TOKEN));
+                this.appId = appId;
+            }
+        
+            @Override
+            public QQ getApi(String accessToken) {
+                //QQImpl 需要多实例，每个用户的accessToken不同
+                return new QQImpl(accessToken, appId);
+            }
+        }
+    ```
+    
+    - 开发Adapter：qq提供的用户数据和spring的标准数据结构间进行适配
+    ```java
+        public class QQAdapter implements ApiAdapter<QQ> {
+        
+            @Override
+            public boolean test(QQ api) {
+                return true;
+            }
+        
+            @Override
+            public void setConnectionValues(QQ api, ConnectionValues values) {
+                QQUserInfo userInfo = api.getUserInfo();
+        
+                values.setDisplayName(userInfo.getNickname());
+                values.setImageUrl(userInfo.getFigureurl_qq_1());
+                //个人主页
+                values.setProfileUrl(null);
+                //服务商的用户id
+                values.setProviderUserId(userInfo.getOpenId());
+            }
+        
+            @Override
+            public UserProfile fetchUserProfile(QQ api) {
+                return null;
+            }
+        
+            @Override
+            public void updateStatus(QQ api, String message) {
+        
+            }
+        }
+    ```
+    
+    - ConnectionFactory
+    ```java
+        public class QQConnectionFactory extends OAuth2ConnectionFactory<QQ> {
+        
+        
+        
+            public QQConnectionFactory(String providerId, String appId, String appSecret) {
+                super(providerId, new QQServiceProvider(appId, appSecret), new QQAdapter());
+            }
+        }
+    ```
+    
+    - 配置
+    ````java
+        @Configuration
+        @EnableSocial
+        public class SocialConfig extends SocialConfigurerAdapter {
+        
+            @Autowired
+            private SecurityProperties securityProperties;
+        
+            @Autowired
+            private DataSource dataSource;
+        
+            /**
+             * 数据库配置
+             * @param connectionFactoryLocator
+             * @return
+             */
+            @Override
+            public UsersConnectionRepository getUsersConnectionRepository(ConnectionFactoryLocator connectionFactoryLocator) {
+                JdbcUsersConnectionRepository jdbcRepository = new JdbcUsersConnectionRepository(dataSource,
+                        connectionFactoryLocator, Encryptors.noOpText());
+                jdbcRepository.setTablePrefix("t_");
+        
+                return jdbcRepository;
+            }
+        
+            /**
+             * 第三方登录拦截路径配置
+             * @return
+             */
+            @Bean
+            public SpringSocialConfigurer springSocialConfigurer() {
+                String filterProcessesUrl = securityProperties.getSocial().getFilterProcessesUrl();
+                return new MySpringSocialConfigurer(filterProcessesUrl);
+            }
+        }
+
+    ````
+    
+    - 根据UserId转为用户信息的配置
+    ```java
+        @Service
+        public class UserDetailServiceImpl implements UserDetailsService, SocialUserDetailsService {
+        
+            private Logger logger = LoggerFactory.getLogger(getClass());
+        
+            @Autowired
+            private PasswordEncoder passwordEncoder;
+        
+            @Override
+            public UserDetails loadUserByUsername(String username)
+                    throws UsernameNotFoundException {
+                logger.info("表单登录用户名:" + username);
+                return buildUser(username);
+            }
+        
+            @Override
+            public SocialUserDetails loadUserByUserId(String userId) throws UsernameNotFoundException {
+                logger.info("设计登录用户Id:" + userId);
+                return buildUser(userId);
+            }
+        
+            private SocialUserDetails buildUser(String userId) {
+                // 根据用户名查找用户信息
+                //根据查找到的用户信息判断用户是否被冻结
+                String password = passwordEncoder.encode("123456");
+                logger.info("数据库密码是:"+password);
+                return new SocialUser(userId, password,
+                        true, true, true, true,
+                        AuthorityUtils.commaSeparatedStringToAuthorityList("admin"));
+            }
+        
+        }
+    ```
+    
+    - 配置 appId等
+    ```java
+        @Data
+        public class QQProperties  extends SocialProperties {
+        
+            private String providerId = "qq";
+        }
+      @Data
+      public class SocialProperties {
+      
+          private String filterProcessesUrl = "/auth";
+      
+          private QQProperties qq = new QQProperties();
+      }
+    
+        @Data
+        @ConfigurationProperties(prefix = "jeff.security")
+        public class SecurityProperties {
+        
+           //...
+        
+            private SocialProperties social = new SocialProperties();
+        
+        }
+      
+          @Configuration
+          //有相应的properties配置时，该类才启用
+          @ConditionalOnProperty(prefix = "jeff.security.social.qq", name = "app-id")
+          public class QQAutoConfig extends SocialAutoConfigurerAdapter {
+          
+              @Autowired
+              private SecurityProperties properties;
+          
+              @Override
+              protected ConnectionFactory<?> createConnectionFactory() {
+                  QQProperties qq = properties.getSocial().getQq();
+                  return new QQConnectionFactory(qq.getProviderId(), qq.getAppId(), qq.getAppSecret());
+              }
+          }
+        
+        
+        // 最后将social的配置添加到应用的过滤链中
+             @Autowired
+            private SpringSocialConfigurer springSocialConfigurer;
+      
+          http.apply(validateCodeSecurityConfig)
+                      .and()
+                      //短信校验配置
+                      .apply(smsCodeAuthenticationConfig)
+                      .and()
+                      //添加social认证配置
+                      .apply(springSocialConfigurer)
+                    //...
+    ```
+
 #### 授权
 
 #### 攻击防护(伪造用户身份)
