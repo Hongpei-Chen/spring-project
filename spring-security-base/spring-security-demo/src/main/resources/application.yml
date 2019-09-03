@@ -31,7 +31,8 @@ security:
 #### 自定义登录页
 jeff:
   security:
-#    browser:
+    browser:
+      signUpUrl: /demo-signup.html
 #      login-page: /demo-signIn.html
       #登录成功或失败后的处理
 #      login-type: JSON
