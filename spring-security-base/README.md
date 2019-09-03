@@ -2006,10 +2006,18 @@
     ```java
     
     ```
+    
+- 绑定解绑
+
+    - /connect
+   ```
+    spring 提供获取所有绑定信息的服务,ConnectController
+    ```
 
 #### 授权
 
 #### 攻击防护(伪造用户身份)
+
 
 #### 配置(extends WebSecurityConfigurerAdapter)
 
@@ -2025,6 +2033,13 @@
                         .authenticated();
             }
     ```
- 
- 
-      
+
+### Session管理 
+#### Session超时处理
+
+#### Session并发控制
+#### 集群Session管理
+
+
+### spring security oauth2
+   

@@ -63,6 +63,11 @@ public class BrowserSecurityConfig extends AbstractChannelSecurityConfig {
                 .tokenValiditySeconds(securityProperties.getBrowser().getRememberMeSeconds())
                 .userDetailsService(userDetailsService)
                 .and()
+                //session 过期配置
+                .sessionManagement()
+                //失效的跳转地址
+                .invalidSessionUrl("/session/invaild")
+                .and()
                 .authorizeRequests()
                //匹配不需要认证的请求
                 .antMatchers(
@@ -71,7 +76,8 @@ public class BrowserSecurityConfig extends AbstractChannelSecurityConfig {
                         securityProperties.getBrowser().getLoginPage(),
                         SecurityConstants.DEFAULT_VALIDATE_CODE_URL_PREFIX + "/*",
                         securityProperties.getBrowser().getSignUpUrl(),
-                        "/user/regist")
+                        "/user/regist",
+                        "/session/invaild")
                 .permitAll()
                 .anyRequest()
                 .authenticated()

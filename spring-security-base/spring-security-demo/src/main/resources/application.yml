@@ -1,5 +1,8 @@
 server:
-  port: 80
+  port: 10081
+  session:
+    #session过期时间秒,spring session的最短过期时间为1分
+    timeout: 600
 
 #数据库配置
 spring:
@@ -21,7 +24,7 @@ spring:
 
   #session配置
   session:
-    store-type: none
+    store-type: redis
 
 #security配置，默认开启
 security:

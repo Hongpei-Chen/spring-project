@@ -2,6 +2,7 @@ package org.jeff.security.core.validate;
 
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
@@ -9,7 +10,7 @@ import java.time.LocalDateTime;
  * <p>Date: 2019-08-28 11:22:00</p>
  */
 @Data
-public class ValidateCode {
+public class ValidateCode implements Serializable{
 
     private String code;
     private LocalDateTime expireTime;
