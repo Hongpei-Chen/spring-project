@@ -30,6 +30,10 @@ spring:
 security:
   basic:
     enabled: true
+  oauth2:
+    client:
+      client-id: appid
+      client-secret: appSecret
 
 #### 自定义登录页
 jeff:

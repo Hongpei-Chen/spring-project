@@ -1,7 +1,7 @@
 /**
  * 
  */
-package org.jeff.security.browser.support;
+package org.jeff.security.core.support;
 
 /**
  * @author zhailiang

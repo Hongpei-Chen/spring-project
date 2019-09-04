@@ -14,7 +14,7 @@
     <dependencies>
         <dependency>
             <groupId>org.jeff.spring</groupId>
-            <artifactId>spring-security-browser</artifactId>
+            <artifactId>spring-security-app</artifactId>
             <version>${org.jeff.spring.version}</version>
         </dependency>
         <dependency>

@@ -2042,4 +2042,254 @@
 
 
 ### spring security oauth2
-   
+
+#### 架构图
+
+- 整体结构
+    ![spring-security-oauth](image/spring-security-oauth.png)
+
+- 核心源码
+    
+    ![spring-security-oauth-src](image/spring-security-oauth-src.png)
+    
+    - 说明
+    ```
+    TokenEndpoint: 处理获取token的请求(/oauth/token), 判断请求属于哪种授权模式
+    
+    ClientDetailsService： 默认实现InMemoryClientDetailsService，读取第三方应用的信息
+    
+    ClientDetails: 封装第三方应用的配置信息, eg: clientId
+    
+    TokenRequest: 由TokenEndpoint创建，封装请求其他的请求信息(eg.: grantType), 
+                  也同时封装了ClientDetails的信息
+                  //TokenRequest tokenRequest = getOAuth2RequestFactory().createTokenRequest(parameters, authenticatedClient);
+                  
+    TokenGranter: 根据TokenRequest调用TokenGranter接口，该接口封装了4种授权模式的实现，并根据TokenRequest的grantType
+                  属性选择具体的授权模式实现token的生成逻辑
+                  
+    OAuth2Request: ClientDetails和TokenRequest的信息整合
+    
+    Authentication: 授权用户的信息
+    
+    OAuth2Authentication: 包含了第三方应用、用户的授权、授权模式和授权的参数信息
+    
+    AuthorizationServerTokenServices: 认证服务器的令牌服务
+    TokenStore:  令牌存储
+    TokenEnhancer: 令牌增强器
+    ```
+    
+- 源码分析
+
+    - 处理获取令牌的请求 TokenEndpoint
+    ```java
+        @RequestMapping(value = "/oauth/token", method=RequestMethod.POST)
+    	public ResponseEntity<OAuth2AccessToken> postAccessToken(Principal principal, @RequestParam
+    	Map<String, String> parameters) throws HttpRequestMethodNotSupportedException {
+    
+    		if (!(principal instanceof Authentication)) {
+    			throw new InsufficientAuthenticationException(
+    					"There is no client authentication. Try adding an appropriate authentication filter.");
+    		}
+    
+    		String clientId = getClientId(principal);
+  		    //将获取第三方应用的信息
+    		ClientDetails authenticatedClient = getClientDetailsService().loadClientByClientId(clientId);
+    		//根据第三方应用和其他请求的参数的信息创建TokenRequest
+    		TokenRequest tokenRequest = getOAuth2RequestFactory().createTokenRequest(parameters, authenticatedClient);
+    
+  		    //验证clientId
+    		if (clientId != null && !clientId.equals("")) {
+    			// Only validate the client details if a client authenticated during this
+    			// request.
+    			if (!clientId.equals(tokenRequest.getClientId())) {
+    				// double check to make sure that the client ID in the token request is the same as that in the
+    				// authenticated client
+    				throw new InvalidClientException("Given client ID does not match authenticated client");
+    			}
+    		}
+  		    
+  		    //一序列验证信息
+    		if (authenticatedClient != null) {
+    			oAuth2RequestValidator.validateScope(tokenRequest, authenticatedClient);
+    		}
+    		if (!StringUtils.hasText(tokenRequest.getGrantType())) {
+    			throw new InvalidRequestException("Missing grant type");
+    		}
+    		if (tokenRequest.getGrantType().equals("implicit")) {
+    			throw new InvalidGrantException("Implicit grant type not supported from token endpoint");
+    		}  
+  		
+  		    //判断是否为授权码模式，若是则清除scope
+    		if (isAuthCodeRequest(parameters)) {
+    			// The scope was requested or determined during the authorization step
+    			if (!tokenRequest.getScope().isEmpty()) {
+    				logger.debug("Clearing scope of incoming token request");
+    				tokenRequest.setScope(Collections.<String> emptySet());
+    			}
+    		}
+    		
+  		    //判断是否为refresh token请求
+    		if (isRefreshTokenRequest(parameters)) {
+    			// A refresh token has its own default scopes, so we should ignore any added by the factory here.
+    			tokenRequest.setScope(OAuth2Utils.parseParameterList(parameters.get(OAuth2Utils.SCOPE)));
+    		}
+    
+  		    //核心代码，调用TokenGranter生成OAuth2AccessToken
+    		OAuth2AccessToken token = getTokenGranter().grant(tokenRequest.getGrantType(), tokenRequest);
+    		if (token == null) {
+    			throw new UnsupportedGrantTypeException("Unsupported grant type: " + tokenRequest.getGrantType());
+    		}
+    
+    		return getResponse(token);
+    
+    	}
+    ```
+    
+    - CompositeTokenGranter 生成OAuth2AccessToken
+    ```java
+        public OAuth2AccessToken grant(String grantType, TokenRequest tokenRequest) {
+            //4种授权模式 + refresh token模式的实现
+            for (TokenGranter granter : tokenGranters) {
+                OAuth2AccessToken grant = granter.grant(grantType, tokenRequest);
+                if (grant!=null) {
+                    return grant;
+                }
+            }
+            return null;
+        }
+    ```
+    
+    - AbstractTokenGranter 生成OAuth2AccessToken的模板代码
+    ```java
+    
+          public OAuth2AccessToken grant(String grantType, TokenRequest tokenRequest) {
+            //判断是哪种授权模式
+    		if (!this.grantType.equals(grantType)) {
+    			return null;
+    		}
+    		
+    		String clientId = tokenRequest.getClientId();
+    		ClientDetails client = clientDetailsService.loadClientByClientId(clientId);
+    		validateGrantType(grantType, client);
+    		
+    		logger.debug("Getting access token for: " + clientId);
+    
+    		return getAccessToken(client, tokenRequest);
+    
+    	}
+  	
+  	    protected OAuth2AccessToken getAccessToken(ClientDetails client, TokenRequest tokenRequest) {
+            //根据ClientDetails和tokenRequest创建OAuth2Authentication
+            //OAuth2Authentication封装了授权相关信息
+    		return tokenServices.createAccessToken(getOAuth2Authentication(client, tokenRequest));
+    	}
+    ```
+    
+    - ResourceOwnerPasswordTokenGranter：密码模式获取OAuth2Authentication
+    ```java
+        @Override
+    	 protected OAuth2Authentication getOAuth2Authentication(ClientDetails client, TokenRequest tokenRequest) {
+    
+    		Map<String, String> parameters = new LinkedHashMap<String, String>(tokenRequest.getRequestParameters());
+    		String username = parameters.get("username");
+    		String password = parameters.get("password");
+    		// Protect from downstream leaks of password
+    		parameters.remove("password");
+    
+    		Authentication userAuth = new UsernamePasswordAuthenticationToken(username, password);
+    		((AbstractAuthenticationToken) userAuth).setDetails(parameters);
+    		try {
+    			userAuth = authenticationManager.authenticate(userAuth);
+    		}
+    		catch (AccountStatusException ase) {
+    			//covers expired, locked, disabled cases (mentioned in section 5.2, draft 31)
+    			throw new InvalidGrantException(ase.getMessage());
+    		}
+    		catch (BadCredentialsException e) {
+    			// If the username/password are wrong the spec says we should send 400/invalid grant
+    			throw new InvalidGrantException(e.getMessage());
+    		}
+    		if (userAuth == null || !userAuth.isAuthenticated()) {
+    			throw new InvalidGrantException("Could not authenticate user: " + username);
+    		}
+    		
+    		OAuth2Request storedOAuth2Request = getRequestFactory().createOAuth2Request(client, tokenRequest);		
+    		return new OAuth2Authentication(storedOAuth2Request, userAuth);
+    	}
+    ```
+    
+    - DefaultTokenServices具体的token生成逻辑( AuthorizationServerTokenServices的默认实现类)
+    ```java
+        @Transactional
+        public OAuth2AccessToken createAccessToken(OAuth2Authentication authentication) throws AuthenticationException {
+    
+            //查看用户是否已发送token信息
+            OAuth2AccessToken existingAccessToken = tokenStore.getAccessToken(authentication);
+            OAuth2RefreshToken refreshToken = null;
+            if (existingAccessToken != null) {
+                //判断是否过期
+                if (existingAccessToken.isExpired()) {
+                    //令牌过期，需删除token相关信息
+                    if (existingAccessToken.getRefreshToken() != null) {
+                        refreshToken = existingAccessToken.getRefreshToken();
+                        // The token store could remove the refresh token when the
+                        // access token is removed, but we want to
+                        // be sure...
+                        tokenStore.removeRefreshToken(refreshToken);
+                    }
+                    tokenStore.removeAccessToken(existingAccessToken);
+                }
+                else {
+                    // Re-store the access token in case the authentication has changed
+                    //重新存储token，授权模式可能改变了
+                    tokenStore.storeAccessToken(existingAccessToken, authentication);
+                    return existingAccessToken;
+                }
+            }
+    
+            // Only create a new refresh token if there wasn't an existing one
+            // associated with an expired access token.
+            // Clients might be holding existing refresh tokens, so we re-use it in
+            // the case that the old access token
+            // expired.
+            // 创建刷新令牌
+            if (refreshToken == null) {
+                refreshToken = createRefreshToken(authentication);
+            }
+            // But the refresh token itself might need to be re-issued if it has
+            // expired.
+            else if (refreshToken instanceof ExpiringOAuth2RefreshToken) {
+                ExpiringOAuth2RefreshToken expiring = (ExpiringOAuth2RefreshToken) refreshToken;
+                if (System.currentTimeMillis() > expiring.getExpiration().getTime()) {
+                    refreshToken = createRefreshToken(authentication);
+                }
+            }
+    
+            OAuth2AccessToken accessToken = createAccessToken(authentication, refreshToken);
+            tokenStore.storeAccessToken(accessToken, authentication);
+            // In case it was modified
+            refreshToken = accessToken.getRefreshToken();
+            if (refreshToken != null) {
+                tokenStore.storeRefreshToken(refreshToken, authentication);
+            }
+            return accessToken;
+    
+        }
+      
+        private OAuth2AccessToken createAccessToken(OAuth2Authentication authentication, OAuth2RefreshToken refreshToken) {
+            //根据UUID生成令牌信息
+      		DefaultOAuth2AccessToken token = new DefaultOAuth2AccessToken(UUID.randomUUID().toString());
+    		
+    		//设置令牌的其他属性
+      		int validitySeconds = getAccessTokenValiditySeconds(authentication.getOAuth2Request());
+      		if (validitySeconds > 0) {
+      			token.setExpiration(new Date(System.currentTimeMillis() + (validitySeconds * 1000L)));
+      		}
+      		token.setRefreshToken(refreshToken);
+      		token.setScope(authentication.getOAuth2Request().getScope());
+      
+    		//判断是否有增强器，有则使用增强器对令牌进行增强(添加某些参数)
+      		return accessTokenEnhancer != null ? accessTokenEnhancer.enhance(token, authentication) : token;
+      	}
+    ```
+    

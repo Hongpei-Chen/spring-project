@@ -1,4 +1,4 @@
-package org.jeff.security.demo.config.auth;
+package org.jeff.security.demo.security;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +45,7 @@ public class UserDetailServiceImpl implements UserDetailsService, SocialUserDeta
         logger.info("数据库密码是:"+password);
         return new SocialUser(userId, password,
                 true, true, true, true,
-                AuthorityUtils.commaSeparatedStringToAuthorityList("admin"));
+                AuthorityUtils.commaSeparatedStringToAuthorityList("admin,ROLE_USER"));
     }
 
 }

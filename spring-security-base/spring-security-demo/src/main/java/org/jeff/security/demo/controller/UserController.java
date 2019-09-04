@@ -40,12 +40,12 @@ public class UserController {
 
     /**
      * 获取当前登录用户的信息
-     * @param authentication
+     * @param
      * @return
      */
     @GetMapping("/me")
-    public Object getCurrentUser(Authentication authentication) {
-        return authentication;
+    public Object getCurrentUser(Authentication user) {
+        return user;
     }
 
     @GetMapping

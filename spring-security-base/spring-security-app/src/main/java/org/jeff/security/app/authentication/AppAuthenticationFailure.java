@@ -1,9 +1,9 @@
-package org.jeff.security.browser.authentication;
+package org.jeff.security.app.authentication;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.jeff.security.core.support.SimpleResponse;
 import org.jeff.security.core.constants.LoginType;
 import org.jeff.security.core.properties.SecurityProperties;
+import org.jeff.security.core.support.SimpleResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,8 +21,8 @@ import java.io.IOException;
  * @author admin
  * <p>Date: 2019-08-26 14:51:00</p>
  */
-@Component("browserAuthenticationFailure")
-public class BrowserAuthenticationFailure extends SimpleUrlAuthenticationFailureHandler {
+@Component
+public class AppAuthenticationFailure extends SimpleUrlAuthenticationFailureHandler {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
 

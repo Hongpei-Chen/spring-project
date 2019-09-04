@@ -1,50 +1,53 @@
-package org.jeff.security.browser.config;
+package org.jeff.security.app;
 
-import org.jeff.security.core.authentication.AbstractChannelSecurityConfig;
 import org.jeff.security.core.authentication.mobile.SmsCodeAuthenticationConfig;
 import org.jeff.security.core.constants.SecurityConstants;
 import org.jeff.security.core.properties.SecurityProperties;
 import org.jeff.security.core.validate.ValidateCodeSecurityConfig;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
-import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
+import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
+import org.springframework.security.oauth2.config.annotation.web.configuration.ResourceServerConfigurerAdapter;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.social.security.SpringSocialConfigurer;
 
-import javax.sql.DataSource;
-
 /**
+ * 资源服务器
  * @author admin
- * <p>Date: 2019-08-23 15:48:00</p>
+ * <p>Date: 2019-09-04 11:10:00</p>
  */
 @Configuration
-public class BrowserSecurityConfig extends AbstractChannelSecurityConfig {
+@EnableResourceServer
+public class AppResourceServerConfig extends ResourceServerConfigurerAdapter {
 
     @Autowired
-    private SecurityProperties securityProperties;
+    private AuthenticationSuccessHandler successHandler;
 
     @Autowired
-    private DataSource dataSource;
-
-    @Autowired
-    private UserDetailsService userDetailsService;
-
-    @Autowired
-    private SmsCodeAuthenticationConfig smsCodeAuthenticationConfig;
+    private AuthenticationFailureHandler failureHandler;
 
     @Autowired
     private ValidateCodeSecurityConfig validateCodeSecurityConfig;
 
     @Autowired
+    private SmsCodeAuthenticationConfig smsCodeAuthenticationConfig;
+
+    @Autowired
     private SpringSocialConfigurer springSocialConfigurer;
 
+    @Autowired
+    private SecurityProperties securityProperties;
+
     @Override
-    protected void configure(HttpSecurity http) throws Exception {
+    public void configure(HttpSecurity http) throws Exception {
         //密码登录配置
-        applyPasswordAuthenticationConfig(http);
+        http.formLogin()
+                .loginPage(SecurityConstants.DEFAULT_UNAUTHENTICATION_URL)
+                .loginProcessingUrl(SecurityConstants.DEFAULT_LOGIN_PROCESSING_URL_FORM)
+                .successHandler(successHandler)
+                .failureHandler(failureHandler);
 
         //校验码相关验证配置(图形验证码或短信验证码是否匹配)
         http.apply(validateCodeSecurityConfig)
@@ -55,19 +58,8 @@ public class BrowserSecurityConfig extends AbstractChannelSecurityConfig {
                 //添加social认证配置
                 .apply(springSocialConfigurer)
                 .and()
-                //"记住我"的配置
-                .rememberMe()
-                .tokenRepository(persistentTokenRepository())
-                .tokenValiditySeconds(securityProperties.getBrowser().getRememberMeSeconds())
-                .userDetailsService(userDetailsService)
-                .and()
-                //session 过期配置
-                .sessionManagement()
-                //失效的跳转地址
-                .invalidSessionUrl("/session/invaild")
-                .and()
                 .authorizeRequests()
-               //匹配不需要认证的请求
+                //匹配不需要认证的请求
                 .antMatchers(
                         SecurityConstants.DEFAULT_UNAUTHENTICATION_URL,
                         SecurityConstants.DEFAULT_LOGIN_PROCESSING_URL_MOBILE,
@@ -83,17 +75,4 @@ public class BrowserSecurityConfig extends AbstractChannelSecurityConfig {
                 //跨站伪造攻击配置
                 .csrf().disable();
     }
-
-    /**
-     * 记住我功能的数据库配置
-     * @return
-     */
-    @Bean
-    public PersistentTokenRepository persistentTokenRepository() {
-        JdbcTokenRepositoryImpl tokenRepository = new JdbcTokenRepositoryImpl();
-        tokenRepository.setDataSource(dataSource);
-        tokenRepository.setCreateTableOnStartup(false);
-        return tokenRepository;
-    }
-
 }

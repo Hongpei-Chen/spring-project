@@ -1,7 +1,7 @@
 package org.jeff.security.browser.controller;
 
 import org.apache.commons.lang.StringUtils;
-import org.jeff.security.browser.support.SimpleResponse;
+import org.jeff.security.core.support.SimpleResponse;
 import org.jeff.security.browser.support.SocialUserInfo;
 import org.jeff.security.core.constants.SecurityConstants;
 import org.jeff.security.core.properties.SecurityProperties;
