@@ -1,0 +1,14 @@
+server:
+  port: 10091
+  context-path: /client1
+
+security:
+  oauth2:
+    client:
+      client-id: clientId1
+      client-secret: clientSecrect1
+      user-authorization-uri: http://127.0.0.1:10082/server/oauth/authorize
+      access-token-uri: http://127.0.0.1:10082/server/oauth/token
+    resource:
+      jwt:
+        key-uri: http://127.0.0.1:10082/server/oauth/token_key

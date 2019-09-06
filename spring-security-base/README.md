@@ -2016,6 +2016,7 @@
 
 #### 授权
 
+
 #### 攻击防护(伪造用户身份)
 
 
@@ -2292,4 +2293,10 @@
       		return accessTokenEnhancer != null ? accessTokenEnhancer.enhance(token, authentication) : token;
       	}
     ```
+ 
+ - Token 处理
+ 
+    - 基本的Token参数配置
+    
+    - 使用JWT   
     

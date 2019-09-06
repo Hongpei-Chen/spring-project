@@ -11,6 +11,7 @@
     <description>Spring Project的相关样例</description>
     <modules>
         <module>spring-security-base</module>
+        <module>sso-base</module>
     </modules>
 
     <dependencies>

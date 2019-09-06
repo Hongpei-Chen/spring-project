@@ -1,12 +1,18 @@
 package org.jeff.security.demo.controller;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
+import org.jeff.security.core.properties.SecurityProperties;
 import org.jeff.security.demo.dto.User;
 import org.jeff.security.demo.dto.UserQueryCondition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -19,6 +25,7 @@ import org.springframework.web.context.request.ServletWebRequest;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,8 +33,13 @@ import java.util.List;
 @RequestMapping("/user")
 public class UserController {
 
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+
     @Autowired
     private ProviderSignInUtils providerSignInUtils;
+
+    @Autowired
+    private SecurityProperties securityProperties;
 
     @PostMapping("/regist")
     public void regist(User user, HttpServletRequest request) {
@@ -44,7 +56,15 @@ public class UserController {
      * @return
      */
     @GetMapping("/me")
-    public Object getCurrentUser(Authentication user) {
+    public Object getCurrentUser(Authentication user, HttpServletRequest request) throws UnsupportedEncodingException {
+        //解析token
+        String authorization = request.getHeader("Authorization");
+        String token = StringUtils.substringAfter(authorization, "bearer ");
+
+        Claims claims = Jwts.parser().setSigningKey(securityProperties.getOauth2().getJwtSigningKey().getBytes("UTF-8"))
+					.parseClaimsJws(token).getBody();
+        logger.info("公司名称：" + claims.get("company"));
+
         return user;
     }
 

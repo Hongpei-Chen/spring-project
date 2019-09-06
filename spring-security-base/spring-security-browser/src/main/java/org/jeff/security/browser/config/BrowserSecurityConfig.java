@@ -2,6 +2,7 @@ package org.jeff.security.browser.config;
 
 import org.jeff.security.core.authentication.AbstractChannelSecurityConfig;
 import org.jeff.security.core.authentication.mobile.SmsCodeAuthenticationConfig;
+import org.jeff.security.core.authorize.AuthorizeConfigManager;
 import org.jeff.security.core.constants.SecurityConstants;
 import org.jeff.security.core.properties.SecurityProperties;
 import org.jeff.security.core.validate.ValidateCodeSecurityConfig;
@@ -41,6 +42,9 @@ public class BrowserSecurityConfig extends AbstractChannelSecurityConfig {
     @Autowired
     private SpringSocialConfigurer springSocialConfigurer;
 
+    @Autowired
+    private AuthorizeConfigManager authorizeConfigManager;
+
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         //密码登录配置
@@ -66,22 +70,10 @@ public class BrowserSecurityConfig extends AbstractChannelSecurityConfig {
                 //失效的跳转地址
                 .invalidSessionUrl("/session/invaild")
                 .and()
-                .authorizeRequests()
-               //匹配不需要认证的请求
-                .antMatchers(
-                        SecurityConstants.DEFAULT_UNAUTHENTICATION_URL,
-                        SecurityConstants.DEFAULT_LOGIN_PROCESSING_URL_MOBILE,
-                        securityProperties.getBrowser().getLoginPage(),
-                        SecurityConstants.DEFAULT_VALIDATE_CODE_URL_PREFIX + "/*",
-                        securityProperties.getBrowser().getSignUpUrl(),
-                        "/user/regist",
-                        "/session/invaild")
-                .permitAll()
-                .anyRequest()
-                .authenticated()
-                .and()
                 //跨站伪造攻击配置
                 .csrf().disable();
+
+        authorizeConfigManager.config(http.authorizeRequests());
     }
 
     /**
