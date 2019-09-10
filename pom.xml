@@ -9,9 +9,19 @@
     <packaging>pom</packaging>
     <version>1.0.0-SNAPSHOT</version>
     <description>Spring Project的相关样例</description>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.1.3.RELEASE</version>
+        <relativePath/>
+    </parent>
+    
     <modules>
         <module>spring-security-base</module>
         <module>sso-base</module>
+        <module>dubbo-boot</module>
+        <module>common-test</module>
     </modules>
 
     <dependencies>
